@@ -10,7 +10,7 @@ float left_distance, right_distance, distance_error;
 
 // PID gains for heading and centering
 float kp_heading = 4, ki_heading = 0.05, kd_heading = 0.2;
-float kp_center = 1.0, ki_center = 0.0, kd_center = 0.0;
+float kp_center = 0.85, ki_center = 0.0, kd_center = 0.05;
 
 // Integral and previous error terms for heading and centering
 float integral_heading = 0, prev_error_heading = 0;
@@ -85,38 +85,50 @@ void setup() {
   mpu.calibrateGyro();
   mpu.setThreshold(3);
   target_heading = getGyroHeading();
+  
   // Set initial heading as target
   delayMillis(3000);
-  driveStraightWithPID(150.0, 155); 
+  pid_gyro_leftwall(200.0, 135);
+  delayMillis(100);
+  turn_right(145,85);
+  delayMillis(100);
+  pid_gyro_leftwall(200.0, 135);
+  delayMillis(100);
+  turn_right(145,85);
+  delayMillis(100);
+  pid_gyro(200.0, 135);
+  delayMillis(100);
+  turn_left(145,85);
+  delayMillis(100);
+  pid_gyro_rightwall(120.0, 105);
+  delayMillis(100);
+  turn_left(145,85);
+  delayMillis(100);
+  pid_gyro_rightwall_tillfound(155);
+  delayMillis(100);
+  pid_gyro_rightwall_tillgone(155);
+  delayMillis(100);
+  turn_left(145,85);
+  delayMillis(100);
+  pid_gyro_tillfound(135,0);
+  delayMillis(100);
+  pid_gyro_leftwall_tillgone(165);
+  delayMillis(100);
+  turn_right(145,85);
+  pid_gyro_time(0.4,155);
+  turn_right(145,85);
+  delayMillis(100);
+  pid_gyro(150.0, 135);
+  delayMillis(100);
+  turn_left(145,85);
+  delayMillis(100);
+  pid_gyro_rightwall_tillfound(155);
+  pid_gyro_rightwall_tillgone(155);
+  go_one();
 }
 
 void loop() {
-  /* delayMillis(3000);
-  updateYaw(); 
-  Serial.print("set traget");
-  Serial.println(target_heading);
-  motor_left(155);
-  motor_right(-155);
-  delayMillis(1000);
-  motor_left(0);
-  motor_right(0);
-  //read_error();
-  delayMillis(100); */
-  //reset_to_initial_heading(155);
-  
-  /* motor_right(155);
-    motor_left(-155); */
-  /* Serial.println("move robot");
-    delay(3000);
-    Serial.println("adjusting robot");
-    delay(1000);
-    reset_to_initial_heading(155); */
-  /* analogWrite(ENB, 155);
-    analogWrite(ENA, 155);
-    digitalWrite(IN3, LOW); // Left motor forward
-    digitalWrite(IN4, HIGH);
-    digitalWrite(IN1, HIGH); // Right motor forward
-    digitalWrite(IN2, LOW); */
+ 
 }
 
 void delayMillis(unsigned long delayTime) {
@@ -146,24 +158,7 @@ float getGyroHeading() {
     return yaw;
 }
 
-void read_error() {
-  float heading_error;
-  while (true) {
-    updateYaw();
-    current_heading = getGyroHeading();
-    heading_error = target_heading - current_heading;
-    Serial.println(heading_error);
-    if (heading_error > 1.0) {
-      Serial.println("turning left");
-    } else if (heading_error < -1.0) {
-      Serial.println("turning right");
-    }
-    if (abs(heading_error) < 1.0) {
-      break;
-    }
-  }
-  Serial.println("Stop");
-}
+
 
 float pidController(float error, float& integral, float& prev_error, float kp, float ki, float kd, float deltaT) {
   integral += error * deltaT;
@@ -194,6 +189,19 @@ void motor_right(int speed) {
   }
 }
 
+void go_one(){
+  turn_left(145,85);
+  delayMillis(100);
+  pid_gyro_leftwall(200.0, 135);
+  turn_right(145,85);
+  delayMillis(100);
+  pid_gyro_leftwall(200.0, 135);
+  delayMillis(100);
+  turn_right(145,85);
+  delayMillis(100);
+  pid_gyro_leftwall(150.0, 135);
+}
+
 void driveStraightWithPID(float threshold, int base_speed) {
   
   unsigned long previousTime = millis();
@@ -218,7 +226,7 @@ void driveStraightWithPID(float threshold, int base_speed) {
     // Ultrasonic centering
     left_distance = analogRead(left_ultra);
     right_distance = analogRead(right_ultra);
-    distance_error = left_distance - right_distance;
+    distance_error = left_distance - 70;
     Serial.print("error");
     Serial.println(heading_error);
 
@@ -246,6 +254,499 @@ void driveStraightWithPID(float threshold, int base_speed) {
   // Ensure both motors stop
   analogWrite(ENB, 0);
   analogWrite(ENA, 0);
+}
+
+void pid_gyro_leftwall(float threshold, int base_speed) {
+  target_heading = getGyroHeading();
+  unsigned long previousTime = millis();
+  // Start motors
+  motor_left(base_speed);
+  motor_right(base_speed);
+  while (true) {
+    unsigned long currentTime = millis();
+    float deltaT = (float)(currentTime - previousTime) / 1000.0;  // in seconds
+    previousTime = currentTime;
+    float front_distance = analogRead(front_ultra);
+    if (front_distance <= threshold) {
+      analogWrite(ENB, 0);
+      analogWrite(ENA, 0);
+      break;
+    }
+
+    // Update current heading and calculate heading error
+    current_heading = getGyroHeading();
+    float heading_error = target_heading - current_heading;
+
+    // Ultrasonic centering
+    left_distance = analogRead(left_ultra);
+    right_distance = analogRead(right_ultra);
+    distance_error = left_distance - 70;
+    Serial.print("error");
+    Serial.println(heading_error);
+
+    // PID control for heading correction
+    float heading_adjustment = pidController(heading_error, integral_heading, prev_error_heading, kp_heading, ki_heading, kd_heading, deltaT);
+    Serial.print("adjustment");
+    Serial.println(heading_adjustment);
+    // PID control for centering adjustment
+    //float centering_adjustment = 0;
+    float centering_adjustment = pidController(distance_error, integral_center, prev_error_center, kp_center, ki_center, kd_center, deltaT);
+
+    // Adjust motor speeds
+    int left_motor_speed = base_speed - heading_adjustment - centering_adjustment;
+    int right_motor_speed = base_speed + heading_adjustment + centering_adjustment;
+
+    // Clamp motor speeds between 0 and 255
+    left_motor_speed = constrain(left_motor_speed, 0, 255);
+    right_motor_speed = constrain(right_motor_speed, 0, 255);
+
+    // Apply speeds to motors
+    analogWrite(ENB, left_motor_speed);
+    analogWrite(ENA, right_motor_speed);
+  }
+
+  // Ensure both motors stop
+  analogWrite(ENB, 0);
+  analogWrite(ENA, 0);
+}
+
+void pid_gyro_leftwall_tillgone(int base_speed) {
+  target_heading = getGyroHeading();
+  unsigned long previousTime = millis();
+  // Start motors
+  motor_left(base_speed);
+  motor_right(base_speed);
+  while (true) {
+    unsigned long currentTime = millis();
+    float deltaT = (float)(currentTime - previousTime) / 1000.0;  // in seconds
+    previousTime = currentTime;
+    float front_distance = analogRead(front_ultra);
+    left_distance = analogRead(left_ultra);
+    right_distance = analogRead(right_ultra);
+    if (right_distance > 150) {
+      analogWrite(ENB, 0);
+      analogWrite(ENA, 0);
+      break;
+    }
+
+    // Update current heading and calculate heading error
+    current_heading = getGyroHeading();
+    float heading_error = target_heading - current_heading;
+
+    distance_error = left_distance - 70;
+    Serial.print("error");
+    Serial.println(heading_error);
+
+    // PID control for heading correction
+    float heading_adjustment = pidController(heading_error, integral_heading, prev_error_heading, kp_heading, ki_heading, kd_heading, deltaT);
+    Serial.print("adjustment");
+    Serial.println(heading_adjustment);
+    // PID control for centering adjustment
+    //float centering_adjustment = 0;
+    float centering_adjustment = pidController(distance_error, integral_center, prev_error_center, kp_center, ki_center, kd_center, deltaT);
+
+    // Adjust motor speeds
+    int left_motor_speed = base_speed - heading_adjustment - centering_adjustment;
+    int right_motor_speed = base_speed + heading_adjustment + centering_adjustment;
+
+    // Clamp motor speeds between 0 and 255
+    left_motor_speed = constrain(left_motor_speed, 0, 255);
+    right_motor_speed = constrain(right_motor_speed, 0, 255);
+
+    // Apply speeds to motors
+    analogWrite(ENB, left_motor_speed);
+    analogWrite(ENA, right_motor_speed);
+  }
+
+  // Ensure both motors stop
+  analogWrite(ENB, 0);
+  analogWrite(ENA, 0);
+}
+
+void pid_gyro_leftwall_tillfound(int base_speed) {
+  target_heading = getGyroHeading();
+  unsigned long previousTime = millis();
+  // Start motors
+  motor_left(base_speed);
+  motor_right(base_speed);
+  while (true) {
+    unsigned long currentTime = millis();
+    float deltaT = (float)(currentTime - previousTime) / 1000.0;  // in seconds
+    previousTime = currentTime;
+    float front_distance = analogRead(front_ultra);
+    left_distance = analogRead(left_ultra);
+    right_distance = analogRead(right_ultra);
+    if (right_distance < 150) {
+      analogWrite(ENB, 0);
+      analogWrite(ENA, 0);
+      break;
+    }
+
+    // Update current heading and calculate heading error
+    current_heading = getGyroHeading();
+    float heading_error = target_heading - current_heading;
+
+    distance_error = left_distance - 70;
+    Serial.print("error");
+    Serial.println(heading_error);
+
+    // PID control for heading correction
+    float heading_adjustment = pidController(heading_error, integral_heading, prev_error_heading, kp_heading, ki_heading, kd_heading, deltaT);
+    Serial.print("adjustment");
+    Serial.println(heading_adjustment);
+    // PID control for centering adjustment
+    //float centering_adjustment = 0;
+    float centering_adjustment = pidController(distance_error, integral_center, prev_error_center, kp_center, ki_center, kd_center, deltaT);
+
+    // Adjust motor speeds
+    int left_motor_speed = base_speed - heading_adjustment - centering_adjustment;
+    int right_motor_speed = base_speed + heading_adjustment + centering_adjustment;
+
+    // Clamp motor speeds between 0 and 255
+    left_motor_speed = constrain(left_motor_speed, 0, 255);
+    right_motor_speed = constrain(right_motor_speed, 0, 255);
+
+    // Apply speeds to motors
+    analogWrite(ENB, left_motor_speed);
+    analogWrite(ENA, right_motor_speed);
+  }
+
+  // Ensure both motors stop
+  analogWrite(ENB, 0);
+  analogWrite(ENA, 0);
+}
+
+void pid_gyro_rightwall(float threshold, int base_speed) {
+  target_heading = getGyroHeading();
+  unsigned long previousTime = millis();
+  // Start motors
+  motor_left(base_speed);
+  motor_right(base_speed);
+  while (true) {
+    unsigned long currentTime = millis();
+    float deltaT = (float)(currentTime - previousTime) / 1000.0;  // in seconds
+    previousTime = currentTime;
+    float front_distance = analogRead(front_ultra);
+    if (front_distance <= threshold) {
+      analogWrite(ENB, 0);
+      analogWrite(ENA, 0);
+      break;
+    }
+
+    // Update current heading and calculate heading error
+    current_heading = getGyroHeading();
+    float heading_error = target_heading - current_heading;
+
+    // Ultrasonic centering
+    left_distance = analogRead(left_ultra);
+    right_distance = analogRead(right_ultra);
+    distance_error = 65 - right_distance;
+    Serial.print("error");
+    Serial.println(heading_error);
+
+    // PID control for heading correction
+    float heading_adjustment = pidController(heading_error, integral_heading, prev_error_heading, kp_heading, ki_heading, kd_heading, deltaT);
+    Serial.print("adjustment");
+    Serial.println(heading_adjustment);
+    // PID control for centering adjustment
+    //float centering_adjustment = 0;
+    float centering_adjustment = pidController(distance_error, integral_center, prev_error_center, kp_center, ki_center, kd_center, deltaT);
+
+    // Adjust motor speeds
+    int left_motor_speed = base_speed - heading_adjustment - centering_adjustment;
+    int right_motor_speed = base_speed + heading_adjustment + centering_adjustment;
+
+    // Clamp motor speeds between 0 and 255
+    left_motor_speed = constrain(left_motor_speed, 0, 255);
+    right_motor_speed = constrain(right_motor_speed, 0, 255);
+
+    // Apply speeds to motors
+    analogWrite(ENB, left_motor_speed);
+    analogWrite(ENA, right_motor_speed);
+  }
+
+  // Ensure both motors stop
+  analogWrite(ENB, 0);
+  analogWrite(ENA, 0);
+}
+
+void pid_gyro_rightwall_tillgone(int base_speed) {
+  target_heading = getGyroHeading();
+  unsigned long previousTime = millis();
+  // Start motors
+  motor_left(base_speed);
+  motor_right(base_speed);
+  while (true) {
+    unsigned long currentTime = millis();
+    float deltaT = (float)(currentTime - previousTime) / 1000.0;  // in seconds
+    previousTime = currentTime;
+    float front_distance = analogRead(front_ultra);
+    left_distance = analogRead(left_ultra);
+    right_distance = analogRead(right_ultra);
+    if (left_distance > 150) {
+      analogWrite(ENB, 0);
+      analogWrite(ENA, 0);
+      break;
+    }
+
+    // Update current heading and calculate heading error
+    current_heading = getGyroHeading();
+    float heading_error = target_heading - current_heading;
+
+    // Ultrasonic centering
+  
+    distance_error = 65 - right_distance;
+    Serial.print("error");
+    Serial.println(heading_error);
+
+    // PID control for heading correction
+    float heading_adjustment = pidController(heading_error, integral_heading, prev_error_heading, kp_heading, ki_heading, kd_heading, deltaT);
+    Serial.print("adjustment");
+    Serial.println(heading_adjustment);
+    // PID control for centering adjustment
+    //float centering_adjustment = 0;
+    float centering_adjustment = pidController(distance_error, integral_center, prev_error_center, kp_center, ki_center, kd_center, deltaT);
+
+    // Adjust motor speeds
+    int left_motor_speed = base_speed - heading_adjustment - centering_adjustment;
+    int right_motor_speed = base_speed + heading_adjustment + centering_adjustment;
+
+    // Clamp motor speeds between 0 and 255
+    left_motor_speed = constrain(left_motor_speed, 0, 255);
+    right_motor_speed = constrain(right_motor_speed, 0, 255);
+
+    // Apply speeds to motors
+    analogWrite(ENB, left_motor_speed);
+    analogWrite(ENA, right_motor_speed);
+  }
+
+  // Ensure both motors stop
+  analogWrite(ENB, 0);
+  analogWrite(ENA, 0);
+}
+
+void pid_gyro_rightwall_tillfound(int base_speed) {
+  
+  target_heading = getGyroHeading();
+  unsigned long previousTime = millis();
+  // Start motors
+  motor_left(base_speed);
+  motor_right(base_speed);
+  while (true) {
+    unsigned long currentTime = millis();
+    float deltaT = (float)(currentTime - previousTime) / 1000.0;  // in seconds
+    previousTime = currentTime;
+    float front_distance = analogRead(front_ultra);
+    left_distance = analogRead(left_ultra);
+    right_distance = analogRead(right_ultra);
+    if (left_distance < 150) {
+      analogWrite(ENB, 0);
+      analogWrite(ENA, 0);
+      break;
+    }
+
+    // Update current heading and calculate heading error
+    current_heading = getGyroHeading();
+    float heading_error = target_heading - current_heading;
+
+    // Ultrasonic centering
+  
+    distance_error = 65 - right_distance;
+    Serial.print("error");
+    Serial.println(heading_error);
+
+    // PID control for heading correction
+    float heading_adjustment = pidController(heading_error, integral_heading, prev_error_heading, kp_heading, ki_heading, kd_heading, deltaT);
+    Serial.print("adjustment");
+    Serial.println(heading_adjustment);
+    // PID control for centering adjustment
+    //float centering_adjustment = 0;
+    float centering_adjustment = pidController(distance_error, integral_center, prev_error_center, kp_center, ki_center, kd_center, deltaT);
+
+    // Adjust motor speeds
+    int left_motor_speed = base_speed - heading_adjustment - centering_adjustment;
+    int right_motor_speed = base_speed + heading_adjustment + centering_adjustment;
+
+    // Clamp motor speeds between 0 and 255
+    left_motor_speed = constrain(left_motor_speed, 0, 255);
+    right_motor_speed = constrain(right_motor_speed, 0, 255);
+
+    // Apply speeds to motors
+    analogWrite(ENB, left_motor_speed);
+    analogWrite(ENA, right_motor_speed);
+  }
+
+  // Ensure both motors stop
+  analogWrite(ENB, 0);
+  analogWrite(ENA, 0);
+}
+
+void pid_gyro(float threshold, int base_speed) {
+  target_heading = getGyroHeading();
+  unsigned long previousTime = millis();
+  // Start motors
+  motor_left(base_speed);
+  motor_right(base_speed);
+  while (true) {
+    unsigned long currentTime = millis();
+    float deltaT = (float)(currentTime - previousTime) / 1000.0;  // in seconds
+    previousTime = currentTime;
+    float front_distance = analogRead(front_ultra);
+    if (front_distance <= threshold) {
+      analogWrite(ENB, 0);
+      analogWrite(ENA, 0);
+      break;
+    }
+
+    // Update current heading and calculate heading error
+    current_heading = getGyroHeading();
+    float heading_error = target_heading - current_heading;
+
+    // PID control for heading correction
+    float heading_adjustment = pidController(heading_error, integral_heading, prev_error_heading, kp_heading, ki_heading, kd_heading, deltaT);
+    Serial.print("adjustment");
+    Serial.println(heading_adjustment);
+    // Adjust motor speeds
+    int left_motor_speed = base_speed - heading_adjustment;
+    int right_motor_speed = base_speed + heading_adjustment;
+
+    // Clamp motor speeds between 0 and 255
+    left_motor_speed = constrain(left_motor_speed, 0, 255);
+    right_motor_speed = constrain(right_motor_speed, 0, 255);
+
+    // Apply speeds to motors
+    analogWrite(ENB, left_motor_speed);
+    analogWrite(ENA, right_motor_speed);
+  }
+
+  // Ensure both motors stop
+  analogWrite(ENB, 0);
+  analogWrite(ENA, 0);
+  reset_to_initial_heading(base_speed);
+}
+
+void pid_gyro_time(float time, int base_speed) {
+  // Capture the start time
+  unsigned long startTime = millis();
+  target_heading = getGyroHeading();
+
+  unsigned long previousTime = millis();
+
+  // Start motors
+  motor_left(base_speed);
+  motor_right(base_speed);
+
+  while (true) {
+    unsigned long currentTime = millis();
+    float deltaT = (float)(currentTime - previousTime) / 1000.0;  // in seconds
+    previousTime = currentTime;
+
+    // Calculate elapsed time
+    float elapsedTime = (currentTime - startTime) / 1000.0;  // Convert to seconds
+
+    // Stop if the elapsed time exceeds the specified duration
+    if (elapsedTime >= time) {
+      analogWrite(ENB, 0);  // Stop left motor
+      analogWrite(ENA, 0);  // Stop right motor
+      break;
+    }
+
+    // Read the front ultrasonic distance (if obstacle check needed)
+    float front_distance = analogRead(front_ultra);
+
+    // Update current heading and calculate heading error
+    current_heading = getGyroHeading();
+    float heading_error = target_heading - current_heading;
+
+    // PID control for heading correction
+    float heading_adjustment = pidController(heading_error, integral_heading, prev_error_heading, kp_heading, ki_heading, kd_heading, deltaT);
+
+    // Adjust motor speeds
+    int left_motor_speed = base_speed - heading_adjustment;
+    int right_motor_speed = base_speed + heading_adjustment;
+
+    // Clamp motor speeds between 0 and 255
+    left_motor_speed = constrain(left_motor_speed, 0, 255);
+    right_motor_speed = constrain(right_motor_speed, 0, 255);
+
+    // Apply speeds to motors
+    analogWrite(ENB, left_motor_speed);
+    analogWrite(ENA, right_motor_speed);
+
+    // Debugging output for monitoring adjustments
+    Serial.print("Heading Adjustment: ");
+    Serial.println(heading_adjustment);
+  }
+
+  // Ensure both motors stop after time limit
+  analogWrite(ENB, 0);
+  analogWrite(ENA, 0);
+
+  // Optionally, reset the heading after the motion
+  reset_to_initial_heading(base_speed);
+}
+
+
+void pid_gyro_tillfound(int base_speed, int mode) {
+  target_heading = getGyroHeading();
+  unsigned long previousTime = millis();
+  bool condition;
+  // Start motors
+  motor_left(base_speed);
+  motor_right(base_speed);
+  
+  while (true) {
+    unsigned long currentTime = millis();
+    float deltaT = (float)(currentTime - previousTime) / 1000.0;  // in seconds
+    previousTime = currentTime;
+    float front_distance = analogRead(front_ultra);
+    left_distance = analogRead(left_ultra);
+    right_distance = analogRead(right_ultra);
+    switch(mode) {
+        case 1:
+            //left
+            condition = left_distance < 150;
+            break;
+        case 2:
+            //rights
+            condition = right_distance < 150;
+            break;
+        default:
+            //either
+            condition = left_distance < 150 || right_distance < 150;
+            break;
+    }
+    if (condition) {
+        analogWrite(ENB, 0);
+        analogWrite(ENA, 0);
+        break;
+    }
+
+    // Update current heading and calculate heading error
+    current_heading = getGyroHeading();
+    float heading_error = target_heading - current_heading;
+
+    // PID control for heading correction
+    float heading_adjustment = pidController(heading_error, integral_heading, prev_error_heading, kp_heading, ki_heading, kd_heading, deltaT);
+    Serial.print("adjustment");
+    Serial.println(heading_adjustment);
+    // Adjust motor speeds
+    int left_motor_speed = base_speed - heading_adjustment;
+    int right_motor_speed = base_speed + heading_adjustment;
+
+    // Clamp motor speeds between 0 and 255
+    left_motor_speed = constrain(left_motor_speed, 0, 255);
+    right_motor_speed = constrain(right_motor_speed, 0, 255);
+
+    // Apply speeds to motors
+    analogWrite(ENB, left_motor_speed);
+    analogWrite(ENA, right_motor_speed);
+  }
+
+  // Ensure both motors stop
+  analogWrite(ENB, 0);
+  analogWrite(ENA, 0);
+  reset_to_initial_heading(base_speed);
 }
 
 void reset_to_initial_heading(int base_speed) {
@@ -283,21 +784,17 @@ void turn_right(int base_speed, float turn_angle) {
 
   // Set the target heading to the initial heading + desired turn angle
   float initial_heading = getGyroHeading();
-  target_heading = initial_heading + turn_angle;
+  target_heading = initial_heading - turn_angle;
 
   unsigned long previousTime = millis();
-
+  Serial.print("target_heading");
+  Serial.println(target_heading);
   while (true) {
-    unsigned long currentTime = millis();
-    float deltaT = (float)(currentTime - previousTime) / 1000.0;  // in seconds
-    previousTime = currentTime;
-
-    // Get the current heading
     current_heading = getGyroHeading();
-
-    // Calculate the error between the target heading and current heading
     float heading_error = target_heading - current_heading;
-
+    motor_right(-base_speed);
+    motor_left(base_speed);
+    Serial.println(heading_error);
     // If the error is close to zero (within a threshold), stop the turn
     if (abs(heading_error) < 1.0) {
       analogWrite(ENB, 0);  // Stop left motor
@@ -305,24 +802,6 @@ void turn_right(int base_speed, float turn_angle) {
       break;
     }
 
-    // Use PID to compute the adjustment for turning
-    float heading_adjustment = pidController(heading_error, integral_heading, prev_error_heading, kp_heading, ki_heading, kd_heading, deltaT);
-
-    // Adjust motor speeds for right turn
-    int left_motor_speed = base_speed + heading_adjustment;
-    int right_motor_speed = base_speed - heading_adjustment;
-
-    // Clamp motor speeds between 0 and 255
-    left_motor_speed = constrain(left_motor_speed, 0, 255);
-    right_motor_speed = constrain(right_motor_speed, 0, 255);
-
-    // Apply speeds to motors (left motor forward, right motor backward)
-    analogWrite(ENB, left_motor_speed);
-    analogWrite(ENA, right_motor_speed);
-    digitalWrite(IN3, HIGH);  // Left motor forward
-    digitalWrite(IN4, LOW);
-    digitalWrite(IN1, LOW);  // Right motor backward
-    digitalWrite(IN2, HIGH);
   }
 
   // Ensure both motors stop after the turn
@@ -336,46 +815,20 @@ void turn_left(int base_speed, float turn_angle) {
 
   // Set the target heading to the initial heading - desired turn angle
   float initial_heading = getGyroHeading();
-  target_heading = initial_heading - turn_angle;
+  target_heading = initial_heading + turn_angle;
 
   unsigned long previousTime = millis();
 
   while (true) {
-    unsigned long currentTime = millis();
-    float deltaT = (float)(currentTime - previousTime) / 1000.0;  // in seconds
-    previousTime = currentTime;
-
-    // Get the current heading
     current_heading = getGyroHeading();
-
-    // Calculate the error between the target heading and current heading
     float heading_error = target_heading - current_heading;
-
-    // If the error is close to zero (within a threshold), stop the turn
+    motor_right(base_speed);
+    motor_left(-base_speed);
     if (abs(heading_error) < 1.0) {
       analogWrite(ENB, 0);  // Stop left motor
       analogWrite(ENA, 0);  // Stop right motor
       break;
     }
-
-    // Use PID to compute the adjustment for turning
-    float heading_adjustment = pidController(heading_error, integral_heading, prev_error_heading, kp_heading, ki_heading, kd_heading, deltaT);
-
-    // Adjust motor speeds for left turn
-    int left_motor_speed = base_speed - heading_adjustment;
-    int right_motor_speed = base_speed + heading_adjustment;
-
-    // Clamp motor speeds between 0 and 255
-    left_motor_speed = constrain(left_motor_speed, 0, 255);
-    right_motor_speed = constrain(right_motor_speed, 0, 255);
-
-    // Apply speeds to motors (left motor backward, right motor forward)
-    analogWrite(ENB, left_motor_speed);
-    analogWrite(ENA, right_motor_speed);
-    digitalWrite(IN3, LOW);  // Left motor backward
-    digitalWrite(IN4, HIGH);
-    digitalWrite(IN1, HIGH);  // Right motor forward
-    digitalWrite(IN2, LOW);
   }
 
   // Ensure both motors stop after the turn
