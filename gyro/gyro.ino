@@ -10,7 +10,7 @@ float left_distance, right_distance, distance_error;
 
 // PID gains for heading and centering
 float kp_heading = 4, ki_heading = 0.05, kd_heading = 0.2;
-float kp_center = 0.85, ki_center = 0.0, kd_center = 0.05;
+float kp_center = 1.5, ki_center = 0.0, kd_center = 0.05;
 
 // Integral and previous error terms for heading and centering
 float integral_heading = 0, prev_error_heading = 0;
@@ -125,6 +125,7 @@ void setup() {
   pid_gyro_rightwall_tillfound(155);
   pid_gyro_rightwall_tillgone(155);
   go_one();
+  //go_two();
 }
 
 void loop() {
@@ -200,6 +201,12 @@ void go_one(){
   turn_right(145,85);
   delayMillis(100);
   pid_gyro_leftwall(150.0, 135);
+}
+
+void go_two(){
+  turn_right(145,85);
+  delayMillis(100);
+  pid_gyro(150,135);
 }
 
 void driveStraightWithPID(float threshold, int base_speed) {
