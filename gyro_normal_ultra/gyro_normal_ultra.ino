@@ -26,9 +26,15 @@ float yaw = 0.0;
 unsigned long lastYawUpdate = 0;
 
 // PID constant
-float kp_heading = 4, ki_heading = 0.05, kd_heading = 0.2;
+float kp_heading = 2, ki_heading = 0, kd_heading = 0.1;
 float kp_center = 1.5, ki_center = 0.0, kd_center = 0.05;
 
+const int LEFTtrig = 0;  
+const int LEFTecho = 1; 
+const int FRONTtrig = 4;  
+const int FRONTecho = 5; 
+const int RIGHTtrig = 12;  
+const int RIGHTecho = 13; 
 
 void setup() {
   Serial.begin(9600);
@@ -40,8 +46,12 @@ void setup() {
   pinMode(IN3, OUTPUT);
   pinMode(IN4, OUTPUT);
 
-
-
+  pinMode(LEFTtrig, OUTPUT);  
+	pinMode(LEFTecho, INPUT);  
+  pinMode(FRONTtrig, OUTPUT);  
+	pinMode(FRONTecho, INPUT);  
+  pinMode(RIGHTtrig, OUTPUT);  
+	pinMode(RIGHTecho, INPUT);  
 
   // Initialize gyroscope
   Wire.begin();
@@ -57,15 +67,15 @@ void setup() {
   target_heading = getGyroHeading();
   
   // Set initial heading as target
-  //delayMillis(3000);
+  delayMillis(3000);
+  driveStraightWithPID(150,155);
   //run(1);
 }
 
 void loop() {
-  motor_left(155);
-  motor_right(155);
  
 }
+
 
 void run(int where){
   delayMillis(3000);
@@ -135,6 +145,22 @@ void go_two(){
   delayMillis(100);
   pid_gyro(150,135);
 }
+
+float calculateDistance(int trigPin, int echoPin) {
+  // Send a pulse to trigger the sensor
+  digitalWrite(trigPin, LOW);
+  delayMicroseconds(2);
+  digitalWrite(trigPin, HIGH);
+  delayMicroseconds(10);
+  digitalWrite(trigPin, LOW);
+
+  long duration = pulseIn(echoPin, HIGH);
+
+  float distance = duration * 0.343 / 2;
+
+  return distance;
+}
+
 
 void delayMillis(unsigned long delayTime) {
     unsigned long startTime = millis();
@@ -154,7 +180,7 @@ void updateYaw() {
     Vector norm = mpu.readNormalizeGyro();
 
     // Update yaw using the Z-axis rotation rate
-    yaw += norm.ZAxis * deltaT;
+    yaw += (norm.ZAxis/10) * deltaT;
 }
 
 // Modify getGyroHeading to simply return the updated yaw
@@ -172,31 +198,14 @@ float pidController(float error, float& integral, float& prev_error, float kp, f
   return kp * error + ki * integral + kd * derivative;
 }
 
-float calculateDistance(int trigPin, int echoPin) {
-  // Send a pulse to trigger the sensor
-  digitalWrite(trigPin, LOW);
-  delayMicroseconds(2);
-  digitalWrite(trigPin, HIGH);
-  delayMicroseconds(10);
-  digitalWrite(trigPin, LOW);
-
-  // Read the time it takes for the echo to return
-  long duration = pulseIn(echoPin, HIGH);
-
-  // Calculate the distance in cm (speed of sound is approx. 343 m/s)
-  float distance = duration * 0.034 / 2; // Divide by 2 to account for the round trip
-
-  return distance;
-}
-
 void motor_left(int speed) {
   analogWrite(ENB, abs(speed));
   if (speed >= 0) {
-    digitalWrite(IN3, LOW);  // Left motor forward
-    digitalWrite(IN4, HIGH);
-  } else {
     digitalWrite(IN3, HIGH);  // Left motor forward
     digitalWrite(IN4, LOW);
+  } else {
+    digitalWrite(IN3, LOW);  // Left motor backward
+    digitalWrite(IN4, HIGH);
   }
 }
 
@@ -211,74 +220,6 @@ void motor_right(int speed) {
   }
 }
 
-void run(int where){
-  delayMillis(3000);
-  pid_gyro_leftwall(200.0, 135);
-  delayMillis(100);
-  turn_right(145,85);
-  delayMillis(100);
-  pid_gyro_leftwall(200.0, 135);
-  delayMillis(100);
-  turn_right(145,85);
-  delayMillis(100);
-  pid_gyro(200.0, 135);
-  delayMillis(100);
-  turn_left(145,85);
-  delayMillis(100);
-  pid_gyro_rightwall(120.0, 105);
-  delayMillis(100);
-  turn_left(145,85);
-  delayMillis(100);
-  pid_gyro_rightwall_tillfound(155);
-  delayMillis(100);
-  pid_gyro_rightwall_tillgone(155);
-  delayMillis(100);
-  turn_left(145,85);
-  delayMillis(100);
-  pid_gyro_tillfound(135,0);
-  delayMillis(100);
-  pid_gyro_leftwall_tillgone(165);
-  delayMillis(100);
-  turn_right(145,85);
-  pid_gyro_time(0.4,155);
-  turn_right(145,85);
-  delayMillis(100);
-  pid_gyro(150.0, 135);
-  delayMillis(100);
-  turn_left(145,85);
-  delayMillis(100);
-  pid_gyro_rightwall_tillfound(155);
-  pid_gyro_rightwall_tillgone(155);\
-  switch(where){
-    case 1:
-      go_one();
-      break;
-    case 2:
-      go_two();
-      break;
-    default:
-      break;
-  }
-}
-
-void go_one(){
-  turn_left(145,85);
-  delayMillis(100);
-  pid_gyro_leftwall(200.0, 135);
-  turn_right(145,85);
-  delayMillis(100);
-  pid_gyro_leftwall(200.0, 135);
-  delayMillis(100);
-  turn_right(145,85);
-  delayMillis(100);
-  pid_gyro_leftwall(150.0, 135);
-}
-
-void go_two(){
-  turn_right(145,85);
-  delayMillis(100);
-  pid_gyro(150,135);
-}
 
 void driveStraightWithPID(float threshold, int base_speed) {
   
@@ -290,7 +231,7 @@ void driveStraightWithPID(float threshold, int base_speed) {
     unsigned long currentTime = millis();
     float deltaT = (float)(currentTime - previousTime) / 1000.0;  // in seconds
     previousTime = currentTime;
-    float front_distance = analogRead(front_ultra);
+    float front_distance = calculateDistance(FRONTtrig,FRONTecho);
     if (front_distance <= threshold) {
       analogWrite(ENB, 0);
       analogWrite(ENA, 0);
@@ -302,8 +243,8 @@ void driveStraightWithPID(float threshold, int base_speed) {
     float heading_error = target_heading - current_heading;
 
     // Ultrasonic centering
-    left_distance = analogRead(left_ultra);
-    right_distance = analogRead(right_ultra);
+    left_distance = calculateDistance(LEFTtrig,LEFTecho);
+    right_distance = calculateDistance(RIGHTtrig,RIGHTecho);
     distance_error = left_distance - 70;
     Serial.print("error");
     Serial.println(heading_error);
@@ -313,8 +254,8 @@ void driveStraightWithPID(float threshold, int base_speed) {
     Serial.print("adjustment");
     Serial.println(heading_adjustment);
     // PID control for centering adjustment
-    //float centering_adjustment = 0;
-    float centering_adjustment = pidController(distance_error, integral_center, prev_error_center, kp_center, ki_center, kd_center, deltaT);
+    float centering_adjustment = 0;
+    //float centering_adjustment = pidController(distance_error, integral_center, prev_error_center, kp_center, ki_center, kd_center, deltaT);
 
     // Adjust motor speeds
     int left_motor_speed = base_speed - heading_adjustment - centering_adjustment;
@@ -344,7 +285,7 @@ void pid_gyro_leftwall(float threshold, int base_speed) {
     unsigned long currentTime = millis();
     float deltaT = (float)(currentTime - previousTime) / 1000.0;  // in seconds
     previousTime = currentTime;
-    float front_distance = analogRead(front_ultra);
+    float front_distance = calculateDistance(FRONTtrig,FRONTecho);
     if (front_distance <= threshold) {
       analogWrite(ENB, 0);
       analogWrite(ENA, 0);
@@ -356,8 +297,8 @@ void pid_gyro_leftwall(float threshold, int base_speed) {
     float heading_error = target_heading - current_heading;
 
     // Ultrasonic centering
-    left_distance = analogRead(left_ultra);
-    right_distance = analogRead(right_ultra);
+    left_distance = calculateDistance(LEFTtrig,LEFTecho);
+    right_distance = calculateDistance(RIGHTtrig,RIGHTecho);
     distance_error = left_distance - 70;
     Serial.print("error");
     Serial.println(heading_error);
@@ -398,9 +339,9 @@ void pid_gyro_leftwall_tillgone(int base_speed) {
     unsigned long currentTime = millis();
     float deltaT = (float)(currentTime - previousTime) / 1000.0;  // in seconds
     previousTime = currentTime;
-    float front_distance = analogRead(front_ultra);
-    left_distance = analogRead(left_ultra);
-    right_distance = analogRead(right_ultra);
+    float front_distance = calculateDistance(FRONTtrig,FRONTecho);
+    left_distance = calculateDistance(LEFTtrig,LEFTecho);
+    right_distance = calculateDistance(RIGHTtrig,RIGHTecho);
     if (right_distance > 150) {
       analogWrite(ENB, 0);
       analogWrite(ENA, 0);
@@ -451,9 +392,9 @@ void pid_gyro_leftwall_tillfound(int base_speed) {
     unsigned long currentTime = millis();
     float deltaT = (float)(currentTime - previousTime) / 1000.0;  // in seconds
     previousTime = currentTime;
-    float front_distance = analogRead(front_ultra);
-    left_distance = analogRead(left_ultra);
-    right_distance = analogRead(right_ultra);
+    float front_distance = calculateDistance(FRONTtrig,FRONTecho);
+    left_distance = calculateDistance(LEFTtrig,LEFTecho);
+    right_distance = calculateDistance(RIGHTtrig,RIGHTecho);
     if (right_distance < 150) {
       analogWrite(ENB, 0);
       analogWrite(ENA, 0);
@@ -504,7 +445,7 @@ void pid_gyro_rightwall(float threshold, int base_speed) {
     unsigned long currentTime = millis();
     float deltaT = (float)(currentTime - previousTime) / 1000.0;  // in seconds
     previousTime = currentTime;
-    float front_distance = analogRead(front_ultra);
+    float front_distance = calculateDistance(FRONTtrig,FRONTecho);
     if (front_distance <= threshold) {
       analogWrite(ENB, 0);
       analogWrite(ENA, 0);
@@ -516,8 +457,8 @@ void pid_gyro_rightwall(float threshold, int base_speed) {
     float heading_error = target_heading - current_heading;
 
     // Ultrasonic centering
-    left_distance = analogRead(left_ultra);
-    right_distance = analogRead(right_ultra);
+    left_distance = calculateDistance(LEFTtrig,LEFTecho);
+    right_distance = calculateDistance(RIGHTtrig,RIGHTecho);
     distance_error = 65 - right_distance;
     Serial.print("error");
     Serial.println(heading_error);
@@ -558,9 +499,9 @@ void pid_gyro_rightwall_tillgone(int base_speed) {
     unsigned long currentTime = millis();
     float deltaT = (float)(currentTime - previousTime) / 1000.0;  // in seconds
     previousTime = currentTime;
-    float front_distance = analogRead(front_ultra);
-    left_distance = analogRead(left_ultra);
-    right_distance = analogRead(right_ultra);
+    float front_distance = calculateDistance(FRONTtrig,FRONTecho);
+    left_distance = calculateDistance(LEFTtrig,LEFTecho);
+    right_distance = calculateDistance(RIGHTtrig,RIGHTecho);
     if (left_distance > 150) {
       analogWrite(ENB, 0);
       analogWrite(ENA, 0);
@@ -614,9 +555,9 @@ void pid_gyro_rightwall_tillfound(int base_speed) {
     unsigned long currentTime = millis();
     float deltaT = (float)(currentTime - previousTime) / 1000.0;  // in seconds
     previousTime = currentTime;
-    float front_distance = analogRead(front_ultra);
-    left_distance = analogRead(left_ultra);
-    right_distance = analogRead(right_ultra);
+    float front_distance = calculateDistance(FRONTtrig,FRONTecho);
+    left_distance = calculateDistance(LEFTtrig,LEFTecho);
+    right_distance = calculateDistance(RIGHTtrig,RIGHTecho);
     if (left_distance < 150) {
       analogWrite(ENB, 0);
       analogWrite(ENA, 0);
@@ -669,7 +610,7 @@ void pid_gyro(float threshold, int base_speed) {
     unsigned long currentTime = millis();
     float deltaT = (float)(currentTime - previousTime) / 1000.0;  // in seconds
     previousTime = currentTime;
-    float front_distance = analogRead(front_ultra);
+    float front_distance = calculateDistance(FRONTtrig,FRONTecho);
     if (front_distance <= threshold) {
       analogWrite(ENB, 0);
       analogWrite(ENA, 0);
@@ -730,7 +671,7 @@ void pid_gyro_time(float time, int base_speed) {
     }
 
     // Read the front ultrasonic distance (if obstacle check needed)
-    float front_distance = analogRead(front_ultra);
+    float front_distance = calculateDistance(FRONTtrig,FRONTecho);
 
     // Update current heading and calculate heading error
     current_heading = getGyroHeading();
@@ -777,9 +718,9 @@ void pid_gyro_tillfound(int base_speed, int mode) {
     unsigned long currentTime = millis();
     float deltaT = (float)(currentTime - previousTime) / 1000.0;  // in seconds
     previousTime = currentTime;
-    float front_distance = analogRead(front_ultra);
-    left_distance = analogRead(left_ultra);
-    right_distance = analogRead(right_ultra);
+    float front_distance = calculateDistance(FRONTtrig,FRONTecho);
+    left_distance = calculateDistance(LEFTtrig,LEFTecho);
+    right_distance = calculateDistance(RIGHTtrig,RIGHTecho);
     switch(mode) {
         case 1:
             //left
