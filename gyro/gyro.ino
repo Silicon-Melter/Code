@@ -88,48 +88,48 @@ void setup() {
   
   // Set initial heading as target
   delayMillis(3000);
-  pid_gyro_leftwall(200.0, 135);
+  //driveStraightWithPID(150,155);
+  pid_gyro_leftwall(170.0, 175);
+  //delayMillis(100);
+  turn_right(175,85);
+  //delayMillis(100);
+  pid_gyro_leftwall(170.0, 175);
+  //delayMillis(100);
+  turn_right(175,85);
+  //delayMillis(100);
+  pid_gyro(170.0, 175);
+  //delayMillis(100);
+  turn_left(175,85);
+  //delayMillis(100);
+  pid_gyro_rightwall(120.0, 135);
+  //delayMillis(100);
+  turn_left(175,85);
+  //delayMillis(100);
+  pid_gyro_rightwall_tillfound(175);
   delayMillis(100);
-  turn_right(145,85);
+  pid_gyro_rightwall_tillgone(175);
   delayMillis(100);
-  pid_gyro_leftwall(200.0, 135);
-  delayMillis(100);
-  turn_right(145,85);
-  delayMillis(100);
-  pid_gyro(200.0, 135);
-  delayMillis(100);
-  turn_left(145,85);
-  delayMillis(100);
-  pid_gyro_rightwall(120.0, 105);
-  delayMillis(100);
-  turn_left(145,85);
-  delayMillis(100);
-  pid_gyro_rightwall_tillfound(155);
-  delayMillis(100);
-  pid_gyro_rightwall_tillgone(155);
-  delayMillis(100);
-  turn_left(145,85);
-  delayMillis(100);
-  pid_gyro_tillfound(135,0);
-  delayMillis(100);
-  pid_gyro_leftwall_tillgone(165);
-  delayMillis(100);
-  turn_right(145,85);
+  turn_left(175,85);
+  //delayMillis(100);
+  pid_gyro_tillfound(175,0);
+  //delayMillis(100);
+  pid_gyro_leftwall_tillgone(175);
+  //delayMillis(100);
+  turn_right(175,85);
   pid_gyro_time(0.4,155);
-  turn_right(145,85);
-  delayMillis(100);
-  pid_gyro(150.0, 135);
-  delayMillis(100);
-  turn_left(145,85);
-  delayMillis(100);
-  pid_gyro_rightwall_tillfound(155);
-  pid_gyro_rightwall_tillgone(155);
+  turn_right(175,85);
+  //delayMillis(100);
+  pid_gyro(150.0, 175);
+  //delayMillis(100);
+  turn_left(175,85);
+  //delayMillis(100);
+  pid_gyro_rightwall_tillfound(175);
+  pid_gyro_rightwall_tillgone(175);
   go_one();
   //go_two();
 }
 
 void loop() {
- 
 }
 
 void delayMillis(unsigned long delayTime) {
@@ -191,16 +191,16 @@ void motor_right(int speed) {
 }
 
 void go_one(){
-  turn_left(145,85);
+  turn_left(175,85);
   delayMillis(100);
-  pid_gyro_leftwall(200.0, 135);
-  turn_right(145,85);
+  pid_gyro_leftwall(170.0, 175);
+  turn_right(175,85);
   delayMillis(100);
-  pid_gyro_leftwall(200.0, 135);
+  pid_gyro_leftwall(170.0, 175);
   delayMillis(100);
-  turn_right(145,85);
+  turn_right(175,85);
   delayMillis(100);
-  pid_gyro_leftwall(150.0, 135);
+  pid_gyro_leftwall(150.0, 255);
 }
 
 void go_two(){
@@ -242,8 +242,8 @@ void driveStraightWithPID(float threshold, int base_speed) {
     Serial.print("adjustment");
     Serial.println(heading_adjustment);
     // PID control for centering adjustment
-    //float centering_adjustment = 0;
-    float centering_adjustment = pidController(distance_error, integral_center, prev_error_center, kp_center, ki_center, kd_center, deltaT);
+    float centering_adjustment = 0;
+    //float centering_adjustment = pidController(distance_error, integral_center, prev_error_center, kp_center, ki_center, kd_center, deltaT);
 
     // Adjust motor speeds
     int left_motor_speed = base_speed - heading_adjustment - centering_adjustment;
@@ -629,7 +629,6 @@ void pid_gyro(float threshold, int base_speed) {
   // Ensure both motors stop
   analogWrite(ENB, 0);
   analogWrite(ENA, 0);
-  reset_to_initial_heading(base_speed);
 }
 
 void pid_gyro_time(float time, int base_speed) {
@@ -690,7 +689,6 @@ void pid_gyro_time(float time, int base_speed) {
   analogWrite(ENA, 0);
 
   // Optionally, reset the heading after the motion
-  reset_to_initial_heading(base_speed);
 }
 
 
@@ -753,7 +751,6 @@ void pid_gyro_tillfound(int base_speed, int mode) {
   // Ensure both motors stop
   analogWrite(ENB, 0);
   analogWrite(ENA, 0);
-  reset_to_initial_heading(base_speed);
 }
 
 void reset_to_initial_heading(int base_speed) {
@@ -787,7 +784,7 @@ void reset_to_initial_heading(int base_speed) {
 
 void turn_right(int base_speed, float turn_angle) {
   // First, reset the robot to the initial heading
-  reset_to_initial_heading(base_speed);
+  //reset_to_initial_heading(base_speed);
 
   // Set the target heading to the initial heading + desired turn angle
   float initial_heading = getGyroHeading();
@@ -818,7 +815,7 @@ void turn_right(int base_speed, float turn_angle) {
 
 void turn_left(int base_speed, float turn_angle) {
   // First, reset the robot to the initial heading
-  reset_to_initial_heading(base_speed);
+  //reset_to_initial_heading(base_speed);
 
   // Set the target heading to the initial heading - desired turn angle
   float initial_heading = getGyroHeading();
